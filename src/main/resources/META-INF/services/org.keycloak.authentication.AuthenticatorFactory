@@ -1,0 +1,2 @@
+com.atrbpn.keycloak.authenticator.multipleauthtnc.KeycloakMultipleAuthenticatorTncFactory
+com.atrbpn.keycloak.authenticator.multipleauthtnc.OTPAuthenticatorTncFactory
