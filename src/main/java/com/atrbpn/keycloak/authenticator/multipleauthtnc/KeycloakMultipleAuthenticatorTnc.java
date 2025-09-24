@@ -1,6 +1,11 @@
 package com.atrbpn.keycloak.authenticator.multipleauthtnc;
 
 import com.atrbpn.keycloak.authenticator.multipleauthtnc.helper.PostgresDBHelper;
+import com.atrbpn.keycloak.authenticator.multipleauthtnc.tnc.TncRequest;
+import com.atrbpn.keycloak.authenticator.multipleauthtnc.tnc.TncResponse;
+import com.atrbpn.keycloak.authenticator.multipleauthtnc.tnc.TncRestClient;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.Authenticator;
 import org.keycloak.credential.CredentialProvider;
@@ -26,6 +31,8 @@ import javax.mail.internet.MimeMessage;
 import javax.naming.Context;
 import javax.naming.InitialContext;
 import javax.ws.rs.core.HttpHeaders;
+
+import java.io.IOException;
 import java.net.URLDecoder;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -178,6 +185,35 @@ public class KeycloakMultipleAuthenticatorTnc implements Authenticator {
 
             // generate otp here
             generateOTPOnEmail(authenticationFlowContext, userModel);
+
+            // get tnc from external api here
+            if (TncRestClient.tncApiBaseUrl != null && !TncRestClient.tncApiBaseUrl.trim().isEmpty()) {
+                log.info("starting tnc request for username : {} ", username);
+                TncRequest tncRequest = new TncRequest(userModel.getAttributes().get("orcluserid").get(0), "internal");
+                TncResponse tncResponse;
+                try {
+                    tncResponse = TncRestClient.verifyUser(tncRequest);
+                    log.info("tnc response: {}", new ObjectMapper().writeValueAsString(tncResponse));
+
+                    if (tncResponse != null)
+                    {
+                        authenticationFlowContext.form().setAttribute("tncMessage", tncResponse.getMessage());
+                        if (tncResponse.getData() != null) {
+                            authenticationFlowContext.form().setAttribute("tncStatus", tncResponse.getData().getStatusTnc());
+                            authenticationFlowContext.form().setAttribute("tncContent", tncResponse.getData().getKonten());
+                            authenticationFlowContext.form().setAttribute("tncVersionUpdated", tncResponse.getData().getVersiTncTerbaru());
+                            authenticationFlowContext.form().setAttribute("tncUrl", tncResponse.getData().getUrl());
+                        } else {
+                            log.warn("tnc response data is null");
+                        }
+                    } else {
+                        log.warn("tnc response is null");
+                    }
+                } catch (IOException ex) {
+                    log.error("error request tnc from external api");
+                    log.error(ex.getMessage(), ex);
+                }
+            }
 
             authenticationFlowContext.forceChallenge(
                     authenticationFlowContext.form().setAttribute("realm", authenticationFlowContext.getRealm())
