@@ -2,6 +2,12 @@ package com.atrbpn.keycloak.authenticator.multipleauthtnc;
 
 import com.atrbpn.keycloak.authenticator.multipleauthtnc.helper.DBHelper;
 import com.atrbpn.keycloak.authenticator.multipleauthtnc.helper.PostgresDBHelper;
+import com.atrbpn.keycloak.authenticator.multipleauthtnc.tnc.TncRequest;
+import com.atrbpn.keycloak.authenticator.multipleauthtnc.tnc.TncResponse;
+
+import com.atrbpn.keycloak.authenticator.multipleauthtnc.tnc.TncRestClient;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.Authenticator;
 import org.keycloak.credential.CredentialProvider;
@@ -194,6 +200,33 @@ public class OTPAuthenticatorTnc implements Authenticator {
 
             authenticationFlowContext.setUser(userModel);
             authenticationFlowContext.success();
+
+            // update tnc to external api here
+            if (TncRestClient.tncApiBaseUrl != null && !TncRestClient.tncApiBaseUrl.trim().isEmpty()) {
+
+                // get tncStatus from auth note
+                String tncStatus;
+                tncStatus = authenticationFlowContext.getAuthenticationSession().getAuthNote("tncStatus");
+                log.info(" tncStatus: {} ", tncStatus);
+
+                if (tncStatus.equals("0")) {
+                    log.info("starting tnc update for username : {} ", username);
+
+                    TncRequest tncRequest = new TncRequest(userModel.getAttributes().get("orcluserid").get(0), "internal");
+
+                    Thread thread = new Thread() {
+                        public void run() {
+                            try {
+                                TncResponse tncResponse = TncRestClient.updateUser(tncRequest);
+                                log.info("tnc api response: {}", new ObjectMapper().writeValueAsString(tncResponse));
+                            } catch (Exception ex) {
+                                log.error(ex.getMessage(), ex);
+                            }
+                        }
+                    };
+                    thread.start();
+                }
+            }
 
         } else {
             // we should never reach this

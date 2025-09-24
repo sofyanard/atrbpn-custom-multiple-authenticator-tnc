@@ -203,6 +203,10 @@ public class KeycloakMultipleAuthenticatorTnc implements Authenticator {
                             authenticationFlowContext.form().setAttribute("tncContent", tncResponse.getData().getKonten());
                             authenticationFlowContext.form().setAttribute("tncVersionUpdated", tncResponse.getData().getVersiTncTerbaru());
                             authenticationFlowContext.form().setAttribute("tncUrl", tncResponse.getData().getUrl());
+
+                            // set statusTnc to auth note for next process
+                            String tncStatus = String.valueOf(tncResponse.getData().getStatusTnc());
+                            authenticationFlowContext.getAuthenticationSession().setAuthNote("tncStatus", tncStatus);
                         } else {
                             log.warn("tnc response data is null");
                         }
